@@ -1,0 +1,3 @@
+﻿netload "plot-pdf.dll"
+open "C:\Users\weiglas.ribeiro.LANGAMER\Documents\Git\plot-pdf\plot-pdf\teste.dwg"
+QPLOT
