@@ -79,23 +79,28 @@ namespace AcadPlugin
 
                 // Using LINQ statement to select LWPOLYLINE from ModelSpace
                 ids = (from id1 in b
-                       where id1.ObjectClass.DxfName.ToUpper() == "LWPOLYLINE"
+                       where OpenObject(tr, id1) is BlockReference &&
+                             OpenObject(tr, id1).Layer == "LANG-GR-PRANCHA 1"
                        select id1).ToList<ObjectId>();
                 // Fim: Pega todos os POLYLINE do desenho atual **********************************************************************************************
 
-                //foreach (var id in ids)
-                //{
-                    ObjectId id = ids[0];
-                    Polyline objPl = tr.GetObject(id, OpenMode.ForRead) as Polyline;
-                    Point2d pMin = objPl.GetPoint2dAt(0);
-                    Point2d pMax = objPl.GetPoint2dAt(2);
-                    Extents2d plotWin= new Extents2d(pMin, pMax);
+                foreach (var id in ids)
+                {
+                    //ObjectId id = ids[0];
+                    //Polyline objPl = tr.GetObject(id, OpenMode.ForRead) as Polyline;
+                    BlockReference objPrancha = tr.GetObject(id, OpenMode.ForRead) as BlockReference;
+                    Extents3d bounds = (Extents3d)objPrancha.Bounds.Value;
+                    Point2d ptMin = new Point2d(bounds.MinPoint.X, bounds.MinPoint.Y);
+                    Point2d ptMax = new Point2d(bounds.MaxPoint.X, bounds.MaxPoint.Y);
+                    Extents2d plotWin = new Extents2d(ptMin, ptMax);
 
                     try
                     {
                         PlotSettingsValidator psv = PlotSettingsValidator.Current;
                         psv.SetPlotWindowArea(plotSettingsObj, plotWin);
-                        
+                        psv.SetPlotRotation(plotSettingsObj, PlotRotation.Degrees090);
+
+
                         //now plot the setup...
                         PlotInfo plotInfo = new PlotInfo();
                         plotInfo.Layout = layoutObj.ObjectId;
@@ -103,7 +108,7 @@ namespace AcadPlugin
                         PlotInfoValidator piv = new PlotInfoValidator();
                         piv.Validate(plotInfo);
 
-                        string outName = "C:\\temp\\" + plotSettingsObj.PlotSettingsName;
+                        string outName = "C:\\Users\\weiglas.ribeiro.LANGAMER\\Desktop\\" + System.DateTime.Now.Millisecond + ".pdf";
 
                         using (var pe = PlotFactory.CreatePublishEngine())
                         {
@@ -131,93 +136,19 @@ namespace AcadPlugin
                     {
 
                     }
-                //}
-
+                }
                 tr.Commit();
             }
         }
 
-
-
-        [CommandMethod("PlotPageSetup")]
-        static public void PlotPageSetup()
-
+        private static Entity cachedEnt = null;
+        private static ObjectId cachedId = ObjectId.Null;
+        private static Entity OpenObject(Transaction tr, ObjectId id)
         {
-            Document doc = Application.DocumentManager.MdiActiveDocument;
-            Database db = doc.Database;
-            Editor ed = doc.Editor;
-
-            PromptStringOptions opts = new PromptStringOptions("Enter plot setting name");
-            opts.AllowSpaces = true;
-            PromptResult settingName = ed.GetString(opts);
-
-            if (settingName.Status != PromptStatus.OK)
-                return;
-
-            using (Transaction Tx = db.TransactionManager.StartTransaction())
-            {
-                LayoutManager layManager = LayoutManager.Current;
-                ObjectId layoutId = layManager.GetLayoutId(layManager.CurrentLayout);
-                Layout layoutObj = (Layout)Tx.GetObject(layoutId, OpenMode.ForRead);
-                DBDictionary plotSettingsDic = (DBDictionary)Tx.GetObject(db.PlotSettingsDictionaryId, OpenMode.ForRead);
-                
-
-                if (!plotSettingsDic.Contains(settingName.StringResult))
-                    return;
-
-                ObjectId plotsetting = plotSettingsDic.GetAt(settingName.StringResult);
-
-                //layout type
-                bool bModel = layoutObj.ModelType;
-                PlotSettings plotSettings = Tx.GetObject(plotsetting, OpenMode.ForRead) as PlotSettings;
-    
-                if (plotSettings.ModelType != bModel)
-                    return;
-
-                object backgroundPlot = Application.GetSystemVariable("BACKGROUNDPLOT");
-                Application.SetSystemVariable("BACKGROUNDPLOT", 0);
-
-                try
-                {
-                    //now plot the setup...
-                    PlotInfo plotInfo = new PlotInfo();
-                    plotInfo.Layout = layoutObj.ObjectId;
-                    plotInfo.OverrideSettings = plotSettings;
-                    PlotInfoValidator piv = new PlotInfoValidator();
-                    piv.Validate(plotInfo);
-
-                    string outName = "c:\\temp\\" + plotSettings.PlotSettingsName;
-
-                    using (var pe = PlotFactory.CreatePublishEngine())
-                    {
-                        // Begin plotting a document.
-                        pe.BeginPlot(null, null);
-                        pe.BeginDocument(plotInfo, doc.Name, null, 1, true, outName);
-
-                        // Begin plotting the page
-                        PlotPageInfo ppi = new PlotPageInfo();
-                        pe.BeginPage(ppi, plotInfo, true, null);
-                        pe.BeginGenerateGraphics(null);
-                        pe.EndGenerateGraphics(null);
-
-                        // Finish the sheet
-                        pe.EndPage(null);
-
-                        // Finish the document
-                        pe.EndDocument(null);
-
-                        //// And finish the plot
-                        pe.EndPlot(null);
-                    }
-                }
-                catch
-                {
-
-                }
-                Tx.Commit();
-
-                Application.SetSystemVariable("BACKGROUNDPLOT", backgroundPlot);//
-            }
+            if (cachedId != id || cachedEnt == null)
+                cachedEnt = tr.GetObject(id, OpenMode.ForRead) as Entity;
+            return cachedEnt;
         }
     }
 }
+
