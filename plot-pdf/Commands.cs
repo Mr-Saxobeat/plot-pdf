@@ -94,6 +94,8 @@ namespace AcadPlugin
                     Point2d ptMax = new Point2d(bounds.MaxPoint.X, bounds.MaxPoint.Y);
                     Extents2d plotWin = new Extents2d(ptMin, ptMax);
 
+                    GetSheetExtents(tr, objPrancha);
+
                     try
                     {
                         PlotSettingsValidator psv = PlotSettingsValidator.Current;
@@ -147,6 +149,21 @@ namespace AcadPlugin
             if (cachedId != id || cachedEnt == null)
                 cachedEnt = tr.GetObject(id, OpenMode.ForRead) as Entity;
             return cachedEnt;
+        }
+
+        private static Extents2d GetSheetExtents(Transaction tr, BlockReference blkSheet)
+        {
+            List<ObjectId> obj;
+            using (DBObjectCollection dbObjCol = new DBObjectCollection())
+            {
+                blkSheet.Explode(dbObjCol);
+                IEnumerable<ObjectId> b = dbObjCol.Cast<ObjectId>();
+                obj = (from obj1 in b
+                           where obj1.ObjectClass.DxfName.ToString() == "LWPOLYLINE"
+                           select obj1).ToList<ObjectId>();
+            }
+
+                return new Extents2d(new Point2d(0, 0), new Point2d(1, 1));
         }
     }
 }
