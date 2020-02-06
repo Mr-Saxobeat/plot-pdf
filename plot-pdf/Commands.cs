@@ -98,8 +98,7 @@ namespace AcadPlugin
                     {
                         PlotSettingsValidator psv = PlotSettingsValidator.Current;
                         psv.SetPlotWindowArea(plotSettingsObj, plotWin);
-                        psv.SetPlotRotation(plotSettingsObj, PlotRotation.Degrees090);
-
+                        psv.SetPlotRotation(plotSettingsObj, PlotRotation.Degrees180);
 
                         //now plot the setup...
                         PlotInfo plotInfo = new PlotInfo();
